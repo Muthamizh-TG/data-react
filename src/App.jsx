@@ -6,11 +6,6 @@ import admin from './pages/admin';
 import approved from './pages/approved';
 import AddBusiness from './pages/add'; 
 
-const cors = require('cors');
-App.use(cors({
-  origin: 'http://localhost:5173',
-}));
-
 function App() {
   return (
     <div className="App" style={{ background: '#000', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>

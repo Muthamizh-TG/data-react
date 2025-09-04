@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
-// Mock API configuration - replace with your actual config
+// Detect environment and set API endpoints
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_CONFIG = {
-    VIEW_API: 'https://ybsmlyja21.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_VIEW',
-    APPROVAL_API: 'https://0wmmfash48.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_Validation'
+    VIEW_API: isLocal
+        ? '/api/PS_VIEW'
+        : 'https://ybsmlyja21.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_VIEW', // Replace with your Lambda API Gateway URL
+    APPROVAL_API: isLocal
+        ? '/api/PS_Validation'
+        : 'https://0wmmfash48.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_Validation' // Replace with your Lambda API Gateway URL
 };
 
 function AdminReviewPage() {
@@ -29,15 +34,20 @@ function AdminReviewPage() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const result = await response.json();
-            const data = result.data || [];
-            
-            setBusinesses(data);
-            setMessage({ 
-                text: 'Successfully fetched all data.', 
-                type: 'success' 
-            });
-
+            const text = await response.text();
+            let result, data;
+            try {
+                result = JSON.parse(text);
+                data = result.data || [];
+                setBusinesses(data);
+                setMessage({ 
+                    text: 'Successfully fetched all data.', 
+                    type: 'success' 
+                });
+            } catch (jsonError) {
+                console.error('Response was not valid JSON:', text);
+                throw new Error('Invalid JSON response. See console for details.');
+            }
         } catch (error) {
             console.error('Error fetching admin data:', error);
             setMessage({ 
@@ -113,36 +123,7 @@ function AdminReviewPage() {
             color: '#ffffff',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }}>
-            {/* Navigation */}
-            <nav style={{
-                backgroundColor: '#212529',
-                padding: '16px 0',
-                marginBottom: '32px'
-            }}>
-                <div style={{
-                    maxWidth: '1200px',
-                    margin: '0 auto',
-                    padding: '0 20px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <div style={{ 
-                        fontSize: '24px', 
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center'
-                    }}>
-                        Technology Garage
-                    </div>
-                    <div style={{ display: 'flex', gap: '24px' }}>
-                        <a href="#" style={{ color: '#ffffff', textDecoration: 'none' }}>Add</a>
-                        <a href="#" style={{ color: '#ffffff', textDecoration: 'none' }}>Edit</a>
-                        <a href="#" style={{ color: '#ffffff', textDecoration: 'none', fontWeight: 'bold' }}>Admin</a>
-                        <a href="#" style={{ color: '#ffffff', textDecoration: 'none' }}>Approved</a>
-                    </div>
-                </div>
-            </nav>
+            
 
             <div style={{
                 maxWidth: '1400px',

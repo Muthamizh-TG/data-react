@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// Mock API configuration - replace with your actual config
+// Use proxied paths instead of direct URLs
 const API_CONFIG = {
-    VIEW_API: 'https://ybsmlyja21.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_VIEW',
-    UPDATE_API: 'https://hzz9hr3re8.execute-api.ap-south-1.amazonaws.com/project_synapes/PS_UPDATE'
+    VIEW_API: process.env.NODE_ENV === 'development'
+        ? '/api/PS_VIEW'
+        : 'https://ybsmlyja21.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_VIEW',
+    UPDATE_API: process.env.NODE_ENV === 'development'
+        ? '/api/PS_UPDATE'
+        : 'https://hzz9hr3re8.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_UPDATE',
+    // Add PS_Validation if needed
 };
 
 function MapPicker({ business, onLocationChange }) {
@@ -13,80 +18,91 @@ function MapPicker({ business, onLocationChange }) {
     const autocompleteRef = useRef(null);
 
     useEffect(() => {
-        const initMap = () => {
-            if (!window.google || !mapRef.current || !searchRef.current) return;
-
-            const defaultLatLng = { lat: 10.817585900291174, lng: 78.68545440761824 };
-            let latLng = defaultLatLng;
-
-            if (business?.locationLink && business.locationLink.includes('?q=')) {
-                const coords = business.locationLink.split('=')[1]?.split(',');
-                if (coords && coords.length >= 2) {
-                    latLng = { lat: parseFloat(coords[0]), lng: parseFloat(coords[1]) };
+        let scriptLoaded = false;
+        let scriptTag = document.getElementById('google-maps-script');
+        function initMapWhenReady() {
+            if (window.google && window.google.maps && mapRef.current && searchRef.current) {
+                if (mapRef.current._mapInitialized) return;
+                mapRef.current._mapInitialized = true;
+                const defaultLatLng = { lat: 10.817585900291174, lng: 78.68545440761824 };
+                let latLng = defaultLatLng;
+                if (business?.locationLink && business.locationLink.includes('?q=')) {
+                    const coords = business.locationLink.split('=')[1]?.split(',');
+                    if (coords && coords.length >= 2) {
+                        latLng = { lat: parseFloat(coords[0]), lng: parseFloat(coords[1]) };
+                    }
                 }
+                const map = new window.google.maps.Map(mapRef.current, {
+                    center: latLng,
+                    zoom: 12
+                });
+                const marker = new window.google.maps.Marker({
+                    position: latLng,
+                    map,
+                    draggable: true
+                });
+                markerRef.current = marker;
+                if (onLocationChange) {
+                    onLocationChange(`https://maps.google.com/?q=${latLng.lat},${latLng.lng}`);
+                }
+                const autocomplete = new window.google.maps.places.Autocomplete(searchRef.current);
+                autocomplete.bindTo('bounds', map);
+                autocomplete.setFields(['geometry', 'name']);
+                autocomplete.addListener('place_changed', function () {
+                    const place = autocomplete.getPlace();
+                    if (!place.geometry) return;
+                    if (place.geometry.viewport) {
+                        map.fitBounds(place.geometry.viewport);
+                    } else {
+                        map.setCenter(place.geometry.location);
+                        map.setZoom(15);
+                    }
+                    marker.setPosition(place.geometry.location);
+                    if (onLocationChange) {
+                        onLocationChange(`https://maps.google.com/?q=${place.geometry.location.lat()},${place.geometry.location.lng()}`);
+                    }
+                });
+                map.addListener('click', function(e) {
+                    marker.setPosition(e.latLng);
+                    if (onLocationChange) {
+                        onLocationChange(`https://maps.google.com/?q=${e.latLng.lat()},${e.latLng.lng()}`);
+                    }
+                });
+                marker.addListener('dragend', function(e) {
+                    const pos = marker.getPosition();
+                    if (onLocationChange) {
+                        onLocationChange(`https://maps.google.com/?q=${pos.lat()},${pos.lng()}`);
+                    }
+                });
             }
-
-            const map = new window.google.maps.Map(mapRef.current, {
-                center: latLng,
-                zoom: 12
-            });
-
-            const marker = new window.google.maps.Marker({
-                position: latLng,
-                map,
-                draggable: true
-            });
-
-            markerRef.current = marker;
-
-            // Initialize location
-            onLocationChange(`https://maps.google.com/?q=${latLng.lat},${latLng.lng}`);
-
-            // Places Autocomplete
-            const autocomplete = new window.google.maps.places.Autocomplete(searchRef.current);
-            autocomplete.bindTo('bounds', map);
-            autocomplete.setFields(['geometry', 'name']);
-            autocompleteRef.current = autocomplete;
-
-            autocomplete.addListener('place_changed', function () {
-                const place = autocomplete.getPlace();
-                if (!place.geometry) return;
-
-                if (place.geometry.viewport) {
-                    map.fitBounds(place.geometry.viewport);
-                } else {
-                    map.setCenter(place.geometry.location);
-                    map.setZoom(15);
-                }
-
-                marker.setPosition(place.geometry.location);
-                onLocationChange(`https://maps.google.com/?q=${place.geometry.location.lat()},${place.geometry.location.lng()}`);
-            });
-
-            // Map click
-            map.addListener('click', function (e) {
-                marker.setPosition(e.latLng);
-                onLocationChange(`https://maps.google.com/?q=${e.latLng.lat()},${e.latLng.lng()}`);
-            });
-
-            // Marker drag
-            marker.addListener('dragend', function () {
-                const pos = marker.getPosition();
-                onLocationChange(`https://maps.google.com/?q=${pos.lat()},${pos.lng()}`);
-            });
-        };
-
-        // Load Google Maps script if not already loaded
-        if (!window.google) {
-            const script = document.createElement('script');
-            script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyDBAKGwpzHfMUPKvye-YjOxer_XjWjjsjQ&libraries=places';
-            script.async = true;
-            script.defer = true;
-            script.onload = initMap;
-            document.body.appendChild(script);
-        } else {
-            setTimeout(initMap, 100);
         }
+        if (!scriptTag) {
+            scriptTag = document.createElement('script');
+            scriptTag.id = 'google-maps-script';
+            scriptTag.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyDBAKGwpzHfMUPKvye-YjOxer_XjWjjsjQ&libraries=places';
+            scriptTag.async = true;
+            scriptTag.onload = () => {
+                scriptLoaded = true;
+                initMapWhenReady();
+            };
+            document.body.appendChild(scriptTag);
+        } else if (window.google && window.google.maps) {
+            initMapWhenReady();
+        } else {
+            scriptTag.onload = () => {
+                scriptLoaded = true;
+                initMapWhenReady();
+            };
+        }
+        const interval = setInterval(() => {
+            if (window.google && window.google.maps && mapRef.current && searchRef.current) {
+                clearInterval(interval);
+                initMapWhenReady();
+            }
+        }, 200);
+        return () => {
+            clearInterval(interval);
+        };
     }, [business, onLocationChange]);
 
     return (
@@ -389,7 +405,10 @@ function EditBusinessPage() {
             setError('');
 
             const response = await fetch(API_CONFIG.VIEW_API, { method: 'GET' });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+            }
 
             const result = await response.json();
             if (!result || !Array.isArray(result.data)) {
@@ -400,7 +419,7 @@ function EditBusinessPage() {
             setFilteredBusinesses(result.data);
         } catch (error) {
             console.error("Error fetching businesses:", error);
-            setError(error.message);
+            setError(error.message.includes('<!doctype') ? 'Server returned an error page. Check CORS or API status.' : error.message);
         } finally {
             setLoading(false);
         }
@@ -450,29 +469,7 @@ function EditBusinessPage() {
             color: '#ffffff',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }}>
-            {/* Navigation */}
-            <nav style={{
-                backgroundColor: '#212529',
-                padding: '16px 0',
-                marginBottom: '32px'
-            }}>
-                <div style={{
-                    maxWidth: '1200px',
-                    margin: '0 auto',
-                    padding: '0 20px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>Technology Garage</div>
-                    <div style={{ display: 'flex', gap: '24px' }}>
-                        <a href="#" style={{ color: '#ffffff', textDecoration: 'none' }}>Add</a>
-                        <a href="#" style={{ color: '#ffffff', textDecoration: 'none', fontWeight: 'bold' }}>Edit</a>
-                        <a href="#" style={{ color: '#ffffff', textDecoration: 'none' }}>Admin</a>
-                        <a href="#" style={{ color: '#ffffff', textDecoration: 'none' }}>Approved</a>
-                    </div>
-                </div>
-            </nav>
+            
 
             <div style={{
                 maxWidth: '1200px',
@@ -593,7 +590,7 @@ function EditBusinessPage() {
                                                         fontSize: '12px'
                                                     }}
                                                 >
-                                                    View Map
+                                                    Map
                                                 </a>
                                             ) : 'N/A'}
                                         </td>
@@ -683,3 +680,13 @@ function EditBusinessPage() {
 }
 
 export default EditBusinessPage;
+
+// Only add the script if it oesn't exist
+function loadGoogleMapsScript() {
+  if (!document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')) {
+    const script = document.createElement('script');
+    script.src = "https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places";
+    script.async = true;
+    document.body.appendChild(script);
+  }
+}

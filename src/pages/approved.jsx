@@ -6,49 +6,48 @@ const ApprovedBusinesses = () => {
   const [error, setError] = useState(null);
   const [showNoData, setShowNoData] = useState(false);
 
-  // Mock API configuration - replace with your actual API URL
-  const VIEW_API_URL = 'https://ybsmlyja21.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_VIEW';
+  // const VIEW_API_URL = '/api/PS_VIEW';
+  const VIEW_API_URL = 'https://ybsmlyja21.execute-api.ap-south-1.amazonaws.com/project_synapse/PS_VIEW'; // Use proxied path instead of direct URL  
 
-  const fetchApproved = async () => {
-    setLoading(true);
-    setError(null);
-    setShowNoData(false);
-    
-    try {
-      const response = await fetch(VIEW_API_URL, { method: 'GET' });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
+const fetchApproved = async () => {
+  setLoading(true);
+  setError(null);
+  setShowNoData(false);
+  
+  try {
+    const response = await fetch(VIEW_API_URL, { method: 'GET' });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const result = await response.json();
 
-      // Only show approved businesses
-      const approvedBusinesses = (result.data || []).filter(b => 
-        b.approved === true || b.approved === "true"
-      );
+    // Only show approved businesses
+    const approvedBusinesses = (result.data || []).filter(b => 
+      b.approved === true || b.approved === "true"
+    );
 
-      if (approvedBusinesses.length > 0) {
-        setBusinesses(approvedBusinesses);
-      } else {
-        setShowNoData(true);
-      }
-    } catch (error) {
-      console.error("Error fetching approved businesses:", error);
-      let msg = error.message;
-      if (msg.includes('Failed to fetch')) {
-        msg = `Unable to load data due to server restrictions (CORS).
+    if (approvedBusinesses.length > 0) {
+      setBusinesses(approvedBusinesses);
+    } else {
+      setShowNoData(true);
+    }
+  } catch (error) {
+    console.error("Error fetching approved businesses:", error);
+    let msg = error.message;
+    if (msg.includes('Failed to fetch')) {
+      msg = `Unable to load data due to server restrictions (CORS).
 
 What is CORS? Cross-Origin Resource Sharing (CORS) is a browser security feature that blocks web pages from making requests to a different domain than the one that served the web page.
 
 How to fix?
-• Contact the API provider or backend admin to enable CORS for your domain.
-• If you are testing locally, use a browser extension like Moesif Origin & CORS Changer to bypass CORS (for development only).
+• Contact the API provider or backend admin to enable CORS for your domain (http://localhost:5173 during development).
 • Check the browser console (F12 > Network tab) for more details.`;
-      }
-      setError(msg);
-    } finally {
-      setLoading(false);
     }
-  };
+    setError(msg);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchApproved();
@@ -56,35 +55,44 @@ How to fix?
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Navigation */}
-      <nav className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <a href="/" className="flex-shrink-0">
-                <img className="h-8 w-auto" src="/api/placeholder/200/40" alt="Logo" />
-              </a>
-            </div>
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
-                <a href="/" className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
-                  Add
-                </a>
-                <a href="/edit" className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
-                  Edit
-                </a>
-                <a href="/admin" className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
-                  Admin
-                </a>
-                <a href="/approved" className="bg-gray-900 text-white px-3 py-2 rounded-md text-sm font-medium">
-                  Approved
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
+      {/* Inline CSS for this page */}
+      <style>{`
+        .approved-table-container {
+          overflow-x: auto;
+        }
+        .approved-table {
+          width: 100%;
+          border-collapse: collapse;
+          background: #222;
+          color: #fff;
+        }
+        .approved-table th, .approved-table td {
+          border: 1px solid #444;
+          padding: 12px 8px;
+          text-align: left;
+        }
+        .approved-table th {
+          background: #333;
+          font-weight: bold;
+        }
+        .approved-table tr:nth-child(even) {
+          background: #282828;
+        }
+        .approved-table a {
+          color: #60a5fa;
+          text-decoration: underline;
+        }
+        .approved-table a:hover {
+          color: #93c5fd;
+        }
+        .truncate {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 200px;
+          display: block;
+        }
+      `}</style>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h2 className="text-3xl font-bold text-center mb-8">Approved Businesses</h2>
 
@@ -120,48 +128,48 @@ How to fix?
 
         {/* Table */}
         {businesses.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-gray-800 rounded-lg overflow-hidden">
-              <thead className="bg-gray-900">
+          <div className="approved-table-container">
+            <table className="approved-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th>
                     Business Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th>
                     Phone
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th>
                     Address
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th>
                     Location
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th>
                     Working Hours
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th>
                     Specialization
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th>
                     Why Visit
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody>
                 {businesses.map((business, index) => (
-                  <tr key={index} className="hover:bg-gray-700 transition-colors duration-200">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                  <tr key={index}>
+                    <td>
                       {business.businessName || business.name || ''}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                    <td>
                       {business.phone || ''}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-200 max-w-xs">
+                    <td className="max-w-xs">
                       <div className="truncate" title={business.address || ''}>
                         {business.address || ''}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                    <td>
                       {business.locationLink ? (
                         <a 
                           href={business.locationLink} 
@@ -173,15 +181,15 @@ How to fix?
                         </a>
                       ) : ''}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                    <td>
                       {business.workingHours !== undefined ? business.workingHours : (business.workinghours || '')}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-200 max-w-xs">
+                    <td className="max-w-xs">
                       <div className="truncate" title={business.specialization || ''}>
                         {business.specialization || ''}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-200 max-w-xs">
+                    <td className="max-w-xs">
                       <div className="truncate" title={business.whyVisit !== undefined ? business.whyVisit : (business.whyvisit || '')}>
                         {business.whyVisit !== undefined ? business.whyVisit : (business.whyvisit || '')}
                       </div>
